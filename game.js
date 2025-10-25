@@ -190,14 +190,17 @@ function drawProgressBar(elapsed) {
 }
 
 function drawUI(elapsed) {
+  const fontSize = Math.max(width, height) * 0.03; // 비율 기반 글씨 크기
   ctx.fillStyle = "black";
-  ctx.font = `${height * 0.04}px Arial`;
+  ctx.font = `bold ${fontSize}px Arial`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   ctx.fillText(`점수: ${score}`, width * 0.05, safePadding + height * 0.01);
+
   drawProgressBar(elapsed);
   drawLives();
 }
+
 
 // ====== 시작 화면 ======
 function drawStartScreen() {
