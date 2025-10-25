@@ -3,6 +3,9 @@ const ctx = canvas.getContext("2d");
 
 let width, height, groundY;
 
+// 안전 영역(노치 대응)
+let safePadding = 0;
+
 function resizeCanvas() {
   const ratio = window.devicePixelRatio || 1;
   const viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
@@ -13,17 +16,17 @@ function resizeCanvas() {
   canvas.width = viewportWidth * ratio;
   canvas.height = viewportHeight * ratio;
 
-  ctx.resetTransform?.();
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   width = viewportWidth;
   height = viewportHeight;
   groundY = height - 50;
+  safePadding = Math.max(window.visualViewport?.offsetTop || 0, 20);
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// 🧩 게임 상태
+// ====== 게임 상태 ======
 let gameStarted = false;
 let showStartScreen = true;
 let obstacles = [];
@@ -42,7 +45,7 @@ const maxHits = 6;
 let lastJumpTime = 0;
 let lastHitTime = 0;
 
-// 🧩 플레이어
+// ====== 플레이어 ======
 const playerImage = new Image();
 playerImage.src = "assets/img/stage1_siraegi.png";
 
@@ -57,6 +60,7 @@ const player = {
   jumpCount: 0,
 };
 
+// ====== 조작 ======
 function jump() {
   const now = performance.now();
   const doubleJump = now - lastJumpTime <= 400;
@@ -88,9 +92,11 @@ function jump() {
     }
   }
 }
+
 document.addEventListener("keydown", e => e.code === "Space" && jump());
 canvas.addEventListener("touchstart", jump);
 
+// ====== 리셋 ======
 function resetGame() {
   obstacles = [];
   items = [];
@@ -110,16 +116,12 @@ function resetGame() {
   requestAnimationFrame(loop);
 }
 
-// 🧩 충돌
+// ====== 충돌 판정 ======
 function checkCollision(a, b) {
-  return (
-    a.x < b.x + b.w &&
-    a.x + a.w > b.x &&
-    a.y < b.y + b.h &&
-    a.y + a.h > b.y
-  );
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
+// ====== 배경 전환 ======
 function updateStageByTime(currentTime) {
   if (!startTime) startTime = currentTime;
   const elapsed = (currentTime - startTime) / 1000;
@@ -132,6 +134,7 @@ function updateStageByTime(currentTime) {
   return elapsed;
 }
 
+// ====== 장애물 스타일 ======
 const obstacleStyles = [
   { color: "#a0d8ef", shape: "circle" },
   { color: "#7b7b7b", shape: "rect" },
@@ -140,19 +143,174 @@ const obstacleStyles = [
   { color: "#8e24aa", shape: "rect" },
 ];
 
+// ====== UI ======
+function drawLives() {
+  const radius = Math.max(width, height) * 0.015;
+  const margin = radius * 0.6;
+  const y = safePadding + radius * 1.5;
+  const startX = width - (radius * 2 + margin) * 3;
+
+  for (let i = 0; i < 3; i++) {
+    const damage = Math.min(2, Math.max(0, hitCount - i * 2));
+    ctx.beginPath();
+    ctx.arc(startX + i * (radius * 2 + margin), y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#ff4444";
+    ctx.fill();
+
+    if (damage === 1) {
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.beginPath();
+      ctx.arc(startX + i * (radius * 2 + margin), y, radius, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(startX + i * (radius * 2 + margin), y);
+      ctx.closePath();
+      ctx.fill();
+    } else if (damage >= 2) {
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.arc(startX + i * (radius * 2 + margin), y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawProgressBar(elapsed) {
+  const totalTime = 60;
+  const progressRatio = Math.min(elapsed / totalTime, 1);
+  const barWidth = width * 0.45;
+  const barHeight = height * 0.015;
+  const barX = (width - barWidth) / 2;
+  const barY = safePadding + barHeight * 2;
+
+  ctx.fillStyle = "#ccc";
+  ctx.fillRect(barX, barY, barWidth, barHeight);
+
+  const indicatorX = barX + progressRatio * barWidth - 3;
+  ctx.fillStyle = "#00b050";
+  ctx.fillRect(indicatorX, barY - barHeight * 0.4, 6, barHeight * 1.8);
+}
+
+function drawUI(elapsed) {
+  ctx.fillStyle = "black";
+  ctx.font = `${height * 0.04}px Arial`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(`점수: ${score}`, width * 0.05, safePadding + height * 0.01);
+  drawProgressBar(elapsed);
+  drawLives();
+}
+
+// ====== 시작 화면 ======
+function drawStartScreen() {
+  ctx.fillStyle = "#fff176";
+  const boxW = width * 0.7;
+  const boxH = height * 0.15;
+  const x = (width - boxW) / 2;
+  const y = (height - boxH) / 2;
+
+  ctx.fillRect(x, y, boxW, boxH);
+  ctx.strokeStyle = "#333";
+  ctx.strokeRect(x, y, boxW, boxH);
+
+  ctx.fillStyle = "black";
+  ctx.font = `bold ${height * 0.03}px Arial`;
+  ctx.textAlign = "center";
+  ctx.fillText(
+    "스페이스바 또는 화면을 탭하여 게임을 시작하세요",
+    width / 2,
+    y + boxH / 2 + height * 0.01
+  );
+}
+
+// ====== 게임 루프 ======
+function loop(timestamp) {
+  if (gameOver) return drawEnding("GAME OVER");
+  if (gameClear) return drawEnding("MISSION CLEAR!", "#00ff88");
+
+  const elapsed = updateStageByTime(timestamp);
+  const bgColors = ["#87cefa", "#90ee90", "#fff176", "#ffb74d", "#b0bec5"];
+  ctx.fillStyle = bgColors[currentBg];
+  ctx.fillRect(0, 0, width, height);
+
+  player.y += player.vy;
+  player.vy += player.gravity;
+  if (player.y >= groundY - player.h) {
+    player.y = groundY - player.h;
+    player.vy = 0;
+    player.jumping = false;
+    player.jumpCount = 0;
+  }
+
+  if (playerImage.complete)
+    ctx.drawImage(playerImage, player.x, player.y, player.w, player.h);
+  else {
+    ctx.fillStyle = "green";
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+  }
+
+  let currentSpeed = baseSpeed + Math.floor(score / 500);
+
+  spawnTimer++;
+  if (spawnTimer > 90 - Math.min(score / 50, 60)) {
+    obstacles.push({ x: width, y: groundY - 40, w: 30, h: 40, stage: currentBg });
+    spawnTimer = 0;
+  }
+
+  itemTimer++;
+  if (itemTimer > 500 + Math.random() * 800) {
+    items.push({
+      x: width + 30,
+      y: groundY - 100 - Math.random() * 150,
+      r: 15,
+      stage: currentBg,
+    });
+    itemTimer = 0;
+  }
+
+  obstacles.forEach(o => {
+    o.x -= currentSpeed;
+    drawObstacle(o, obstacleStyles[o.stage]);
+    if (checkCollision(player, o)) {
+      const now = performance.now();
+      if (now - lastHitTime > 500) {
+        hitCount++;
+        lastHitTime = now;
+      }
+      obstacles = obstacles.filter(obs => obs !== o);
+      if (hitCount >= maxHits) gameOver = true;
+    }
+  });
+  obstacles = obstacles.filter(o => o.x + o.w > 0);
+
+  items.forEach(it => {
+    it.x -= currentSpeed;
+    drawStar(it.x, it.y, it.r);
+    if (
+      checkCollision(player, { x: it.x - it.r, y: it.y - it.r, w: it.r * 2, h: it.r * 2 })
+    ) {
+      score += 50;
+      floatingTexts.push({ x: it.x, y: it.y, text: "+50", alpha: 1 });
+      items = items.filter(i => i !== it);
+    }
+  });
+  items = items.filter(it => it.x + it.r > 0);
+
+  score++;
+  drawUI(elapsed);
+  drawFloatingTexts();
+
+  requestAnimationFrame(loop);
+}
+
 function drawObstacle(o, style) {
   ctx.fillStyle = style.color;
-  switch (style.shape) {
-    case "circle":
-      ctx.beginPath();
-      ctx.arc(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-    case "bar":
-      ctx.fillRect(o.x, o.y + o.h - 10, o.w, 10);
-      break;
-    default:
-      ctx.fillRect(o.x, o.y, o.w, o.h);
+  if (style.shape === "circle") {
+    ctx.beginPath();
+    ctx.arc(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (style.shape === "bar") {
+    ctx.fillRect(o.x, o.y + o.h - 10, o.w, 10);
+  } else {
+    ctx.fillRect(o.x, o.y, o.w, o.h);
   }
 }
 
@@ -197,145 +355,10 @@ function drawEnding(text, color = "white") {
   ctx.fillText("탭하거나 스페이스로 다시 시작", width / 2, height / 2 + 40);
 }
 
-function drawStartScreen() {
-  ctx.fillStyle = "#fff176";
-  const boxW = width * 0.7;
-  const boxH = 150;
-  const x = (width - boxW) / 2;
-  const y = (height - boxH) / 2;
-  ctx.fillRect(x, y, boxW, boxH);
-  ctx.strokeStyle = "#333";
-  ctx.strokeRect(x, y, boxW, boxH);
-  ctx.fillStyle = "black";
-  ctx.font = "24px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("스페이스바 또는 화면을 탭하여 게임을 시작하세요", width / 2, height / 2 + 10);
-}
-
-function drawLives() {
-  const radius = 15;
-  const margin = 10;
-  const safeY = 50;
-  const startX = width - (radius * 2 + margin) * 3;
-
-  for (let i = 0; i < 3; i++) {
-    const damage = Math.min(2, Math.max(0, hitCount - i * 2));
-    ctx.beginPath();
-    ctx.arc(startX + i * (radius * 2 + margin), safeY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#ff4444";
-    ctx.fill();
-
-    if (damage === 1) {
-      ctx.fillStyle = "rgba(255,255,255,0.8)";
-      ctx.beginPath();
-      ctx.arc(startX + i * (radius * 2 + margin), safeY, radius, -Math.PI / 2, Math.PI / 2);
-      ctx.lineTo(startX + i * (radius * 2 + margin), safeY);
-      ctx.closePath();
-      ctx.fill();
-    } else if (damage >= 2) {
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.beginPath();
-      ctx.arc(startX + i * (radius * 2 + margin), safeY, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-function drawProgressBar(elapsed) {
-  const totalTime = 60;
-  const progressRatio = Math.min(elapsed / totalTime, 1);
-  const barWidth = width * 0.4;
-  const barHeight = 10;
-  const barX = (width - barWidth) / 2;
-  const barY = height * 0.05;
-  ctx.fillStyle = "#ccc";
-  ctx.fillRect(barX, barY, barWidth, barHeight);
-  const indicatorX = barX + progressRatio * barWidth - 2;
-  ctx.fillStyle = "#00b050";
-  ctx.fillRect(indicatorX, barY - 4, 6, barHeight + 8);
-}
-
-function loop(timestamp) {
-  if (gameOver) return drawEnding("GAME OVER");
-  if (gameClear) return drawEnding("MISSION CLEAR!", "#00ff88");
-
-  const elapsed = updateStageByTime(timestamp);
-  const bgColors = ["#87cefa", "#90ee90", "#fff176", "#ffb74d", "#b0bec5"];
-  ctx.fillStyle = bgColors[currentBg];
-  ctx.fillRect(0, 0, width, height);
-
-  player.y += player.vy;
-  player.vy += player.gravity;
-  if (player.y >= groundY - player.h) {
-    player.y = groundY - player.h;
-    player.vy = 0;
-    player.jumping = false;
-    player.jumpCount = 0;
-  }
-
-  if (playerImage.complete) ctx.drawImage(playerImage, player.x, player.y, player.w, player.h);
-  else {
-    ctx.fillStyle = "green";
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-  }
-
-  let currentSpeed = baseSpeed + Math.floor(score / 500);
-
-  spawnTimer++;
-  if (spawnTimer > 90 - Math.min(score / 50, 60)) {
-    obstacles.push({ x: width, y: groundY - 40, w: 30, h: 40, stage: currentBg });
-    spawnTimer = 0;
-  }
-
-  itemTimer++;
-  if (itemTimer > 500 + Math.random() * 800) {
-    items.push({ x: width + 30, y: groundY - 100 - Math.random() * 150, r: 15, stage: currentBg });
-    itemTimer = 0;
-  }
-
-  obstacles.forEach(o => {
-    o.x -= currentSpeed;
-    drawObstacle(o, obstacleStyles[o.stage]);
-    if (checkCollision(player, o)) {
-      const now = performance.now();
-      if (now - lastHitTime > 500) {
-        hitCount += 1;
-        lastHitTime = now;
-      }
-      obstacles = obstacles.filter(obs => obs !== o);
-      if (hitCount >= maxHits) gameOver = true;
-    }
-  });
-  obstacles = obstacles.filter(o => o.x + o.w > 0);
-
-  items.forEach(it => {
-    it.x -= currentSpeed;
-    drawStar(it.x, it.y, it.r);
-    if (checkCollision(player, { x: it.x - it.r, y: it.y - it.r, w: it.r * 2, h: it.r * 2 })) {
-      score += 50;
-      floatingTexts.push({ x: it.x, y: it.y, text: "+50", alpha: 1 });
-      items = items.filter(i => i !== it);
-    }
-  });
-  items = items.filter(it => it.x + it.r > 0);
-
-  score++;
-  ctx.fillStyle = "black";
-  ctx.font = `${height * 0.03}px Arial`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  ctx.fillText(`점수: ${score}`, width * 0.05, height * 0.03);
-
-  drawLives();
-  drawProgressBar(elapsed);
-  drawFloatingTexts();
-
-  requestAnimationFrame(loop);
-}
-
 function renderStartScreen() {
   ctx.fillStyle = "#87cefa";
   ctx.fillRect(0, 0, width, height);
   drawStartScreen();
 }
+
 renderStartScreen();
