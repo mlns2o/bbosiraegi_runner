@@ -1,6 +1,9 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+let width, height, groundY;
+
+// ✅ 캔버스 크기 설정 함수 (100% 반응형)
 function resizeCanvas() {
   width = window.innerWidth;
   height = window.innerHeight;
@@ -9,16 +12,12 @@ function resizeCanvas() {
   groundY = height - 50;
 }
 
-// 처음 한 번 호출
 resizeCanvas();
-
-// 리사이즈될 때마다 갱신
 window.addEventListener("resize", resizeCanvas);
 
 // ✅ 게임 상태
-let gameStarted = false; // 시작 여부
+let gameStarted = false;
 let showStartScreen = true;
-
 let obstacles = [];
 let items = [];
 let spawnTimer = 0;
@@ -27,7 +26,6 @@ let score = 0;
 let gameOver = false;
 let gameClear = false;
 let baseSpeed = 8;
-let groundY = height - 50;
 let currentBg = 0;
 let startTime = null;
 let hitCount = 0;
@@ -37,31 +35,17 @@ let lastJumpTime = 0;
 // ⭐ 이펙트
 let floatingTexts = [];
 
-// ✅ 플레이어 이미지
-const playerImage = new Image();
-playerImage.src = "assets/img/stage1_siraegi.png"; // 시래기 캐릭터
-
-// ✅ 플레이어
+// ✅ 플레이어 (임시 사각형)
 const player = {
   x: 80,
   y: 0,
-  w: width * 0.05,   // 화면 너비의 5%
-  h: height * 0.12,  // 화면 높이의 12%
+  w: width * 0.05,
+  h: height * 0.12,
   vy: 0,
   gravity: 0.8,
   jumping: false,
   jumpCount: 0,
 };
-
-
-// ✅ 반응형
-window.addEventListener("resize", () => {
-  width = window.innerWidth;
-  height = window.innerHeight * 0.6;
-  canvas.width = width;
-  canvas.height = height;
-  groundY = height - 50;
-});
 
 // ❤️ 생명 표시
 function drawLives() {
@@ -121,7 +105,6 @@ function jump() {
   const doubleJump = now - lastJumpTime <= 400;
 
   if (!gameStarted) {
-    // 처음 입력 → 게임 시작
     gameStarted = true;
     showStartScreen = false;
     requestAnimationFrame(loop);
@@ -142,30 +125,10 @@ function jump() {
   }
 }
 
-// ✅ 입력 이벤트
 document.addEventListener("keydown", e => {
   if (e.code === "Space") jump();
 });
 canvas.addEventListener("touchstart", jump);
-
-// ✅ 리셋
-function resetGame() {
-  obstacles = [];
-  items = [];
-  floatingTexts = [];
-  score = 0;
-  gameOver = false;
-  gameClear = false;
-  baseSpeed = 8;
-  currentBg = 0;
-  startTime = null;
-  hitCount = 0;
-  player.y = groundY - player.h;
-  player.vy = 0;
-  player.jumping = false;
-  player.jumpCount = 0;
-  requestAnimationFrame(loop);
-}
 
 // ✅ 충돌 감지
 function checkCollision(a, b) {
@@ -253,7 +216,7 @@ function drawEnding(text, color = "white") {
 
 // ✅ 시작 안내화면
 function drawStartScreen() {
-  ctx.fillStyle = "#fff176"; // 노란 배경
+  ctx.fillStyle = "#fff176";
   const boxW = 450;
   const boxH = 150;
   const x = (width - boxW) / 2;
@@ -287,14 +250,9 @@ function loop(timestamp) {
     player.jumpCount = 0;
   }
 
-  if (playerImage.complete) {
-  ctx.drawImage(playerImage, player.x, player.y, player.w, player.h);
-  } else {
-  // 이미지 로딩 전엔 기본 사각형 표시
+  // 플레이어
   ctx.fillStyle = "green";
   ctx.fillRect(player.x, player.y, player.w, player.h);
-  }
-
 
   let currentSpeed = baseSpeed + Math.floor(score / 500);
 
