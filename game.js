@@ -5,12 +5,21 @@ let width, height, groundY;
 
 // ✅ 캔버스 크기 설정 함수 (100% 반응형)
 function resizeCanvas() {
+  const ratio = window.devicePixelRatio || 1; // ✅ 픽셀 비율 반영
   width = window.innerWidth;
   height = window.innerHeight;
-  canvas.width = width;
-  canvas.height = height;
+
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0); // ✅ 모든 그리기 좌표 비율 조정
+
   groundY = height - 50;
 }
+
 
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
