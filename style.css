@@ -1,0 +1,13 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+canvas {
+  display: block;
+  margin: 0 auto;
+  background: #87cefa; /* 기본 하늘색 */
+  touch-action: manipulation; /* 모바일 확대/드래그 방지 */
+}
