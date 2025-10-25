@@ -2,12 +2,33 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>시래기떡 러너 (기능 완성 테스트)</title>
-  <link rel="stylesheet" href="./style.css" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <title>뽀시래기 러너</title>
+
+  <!-- favicon 선택적으로 -->
+  <link rel="icon" href="assets/img/stage1_siraegi.png" type="image/png" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #87cefa; /* 기본 하늘색 */
+      height: 100%;
+      touch-action: manipulation;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #87cefa;
+    }
+  </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
-  <script src="./game.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
