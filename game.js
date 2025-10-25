@@ -1,10 +1,19 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let width = window.innerWidth;
-let height = window.innerHeight * 0.6;
-canvas.width = width;
-canvas.height = height;
+function resizeCanvas() {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+  groundY = height - 50;
+}
+
+// 처음 한 번 호출
+resizeCanvas();
+
+// 리사이즈될 때마다 갱신
+window.addEventListener("resize", resizeCanvas);
 
 // ✅ 게임 상태
 let gameStarted = false; // 시작 여부
@@ -28,17 +37,22 @@ let lastJumpTime = 0;
 // ⭐ 이펙트
 let floatingTexts = [];
 
+// ✅ 플레이어 이미지
+const playerImage = new Image();
+playerImage.src = "assets/img/stage1_siraegi.png"; // 시래기 캐릭터
+
 // ✅ 플레이어
 const player = {
   x: 80,
   y: 0,
-  w: 50,
-  h: 50,
+  w: width * 0.05,   // 화면 너비의 5%
+  h: height * 0.12,  // 화면 높이의 12%
   vy: 0,
   gravity: 0.8,
   jumping: false,
   jumpCount: 0,
 };
+
 
 // ✅ 반응형
 window.addEventListener("resize", () => {
@@ -273,8 +287,14 @@ function loop(timestamp) {
     player.jumpCount = 0;
   }
 
+  if (playerImage.complete) {
+  ctx.drawImage(playerImage, player.x, player.y, player.w, player.h);
+  } else {
+  // 이미지 로딩 전엔 기본 사각형 표시
   ctx.fillStyle = "green";
   ctx.fillRect(player.x, player.y, player.w, player.h);
+  }
+
 
   let currentSpeed = baseSpeed + Math.floor(score / 500);
 
