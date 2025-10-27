@@ -1,367 +1,239 @@
+import { Player } from "./player.js";
+import { StageManager } from "./stageManager.js";
+import { drawUI } from "./ui.js";
+import { resizeCanvas } from "./utils.js";
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let width, height, groundY;
-
-// 안전 영역(노치 대응)
-let safePadding = 0;
-
-function resizeCanvas() {
-  const ratio = window.devicePixelRatio || 1;
-  const viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
-  canvas.style.width = viewportWidth + "px";
-  canvas.style.height = viewportHeight + "px";
-  canvas.width = viewportWidth * ratio;
-  canvas.height = viewportHeight * ratio;
-
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-
-  width = viewportWidth;
-  height = viewportHeight;
-  groundY = height - 50;
-  safePadding = Math.max(window.visualViewport?.offsetTop || 0, 20);
-}
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
-
-// ====== 게임 상태 ======
+let width, height, groundY, safePadding;
+let player, stageManager;
 let gameStarted = false;
-let showStartScreen = true;
-let obstacles = [];
-let items = [];
-let floatingTexts = [];
-let spawnTimer = 0;
-let itemTimer = 0;
-let score = 0;
 let gameOver = false;
-let gameClear = false;
-let baseSpeed = 8;
-let currentBg = 0;
-let startTime = null;
+let floatingTexts = [];
+let score = 0;
 let hitCount = 0;
 const maxHits = 6;
-let lastJumpTime = 0;
-let lastHitTime = 0;
+let lastTime = 0;
 
-// ====== 플레이어 ======
-const playerImage = new Image();
-playerImage.src = "assets/img/stage1_siraegi.png";
+function setupCanvas() {
+  const size = resizeCanvas(canvas, ctx);
+  width = size.width;
+  height = size.height;
+  safePadding = size.safePadding;
+  groundY = height - 50;
+}
+setupCanvas();
+window.addEventListener("resize", setupCanvas);
 
-const player = {
-  x: 80,
-  y: 0,
-  w: 80,
-  h: 120,
-  vy: 0,
-  gravity: 0.8,
-  jumping: false,
-  jumpCount: 0,
-};
+player = new Player(width, height);
+stageManager = new StageManager(width, height);
 
-// ====== 조작 ======
-function jump() {
-  const now = performance.now();
-  const doubleJump = now - lastJumpTime <= 400;
+function drawStartScreen() {
+  ctx.fillStyle = "#87cefa";
+  ctx.fillRect(0, 0, width, height);
 
-  if (gameOver || gameClear) {
-    gameOver = false;
-    gameClear = false;
+
+  const boxWidth = width * 0.5;
+  const boxHeight = height * 0.25;
+  const boxX = (width - boxWidth) / 2;
+  const boxY = (height - boxHeight) / 2;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+  ctx.fillStyle = "black";
+  ctx.textAlign = "center";
+  ctx.font = `bold ${Math.floor(height * 0.05)}px Arial`;
+  ctx.fillText("뽀시래기 러너", width / 2, boxY + boxHeight * 0.45);
+
+  ctx.font = `${Math.floor(height * 0.03)}px Arial`;
+  ctx.fillText("스페이스를 눌러 시작합니다", width / 2, boxY + boxHeight * 0.75);
+}
+
+function resetGame() {
+  gameOver = false;
+  floatingTexts = [];
+  score = 0;
+  hitCount = 0;
+  lastTime = 0;
+  player.reset(width, height);
+  stageManager.reset();
+
+  ctx.clearRect(0, 0, width, height);
+  stageManager.update(0, ctx, width, height);
+  player.update(ctx, groundY);
+  drawUI(ctx, width, height, score, hitCount, 0, safePadding);
+
+  setTimeout(() => requestAnimationFrame(loop), 100);
+}
+
+let spaceHeld = false;
+let spacePressTime = 0;
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" || e.code === "Tab") {
+    if (!spaceHeld) {
+      spaceHeld = true;
+      spacePressTime = Date.now();
+
+      if (!gameStarted) {
+        gameStarted = true;
+        requestAnimationFrame(loop);
+        return;
+      }
+
+      if (gameOver) {
+        resetGame();
+        return;
+      }
+
+      player.jump();
+    }
+  }
+});
+
+document.addEventListener("keyup", e => {
+  if (e.code === "Space" || e.code === "Tab") {
+    const holdTime = Date.now() - spacePressTime;
+    spaceHeld = false;
+    if (holdTime > 200) player.slide(false, groundY);
+  }
+});
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  spacePressTime = Date.now();
+  spaceHeld = true;
+
+  if (!gameStarted) {
+    gameStarted = true;
+    requestAnimationFrame(loop);
+    return;
+  }
+  if (gameOver) {
     resetGame();
     return;
   }
 
-  if (!gameStarted) {
-    gameStarted = true;
-    showStartScreen = false;
-    requestAnimationFrame(loop);
+  player.jump();
+});
+
+canvas.addEventListener("touchend", e => {
+  e.preventDefault();
+  const holdTime = Date.now() - spacePressTime;
+  spaceHeld = false;
+  if (holdTime > 200) player.slide(false, groundY);
+});
+
+canvas.setAttribute("tabindex", "0");
+canvas.focus();
+canvas.addEventListener("click", () => canvas.focus());
+
+function loop(timestamp) {
+  if (!gameStarted || gameOver) return;
+
+  if (!lastTime) lastTime = timestamp;
+  const delta = (timestamp - lastTime) / 1000;
+  lastTime = timestamp;
+
+  stageManager.update(timestamp, ctx, width, height);
+
+  if (stageManager.isCleared()) {
+    gameOver = true;
+    drawClearScreen();
     return;
   }
 
-  if (!gameOver && !gameClear) {
-    if (!player.jumping) {
-      player.vy = -15;
-      player.jumping = true;
-      player.jumpCount = 1;
-      lastJumpTime = now;
-    } else if (player.jumpCount === 1 && doubleJump) {
-      player.vy = -22;
-      player.jumpCount = 2;
-      lastJumpTime = now;
-    }
+  score += 10 * delta;
+
+  if (spaceHeld && !player.jumping && Date.now() - spacePressTime > 200) {
+    player.slide(true, groundY);
   }
-}
 
-document.addEventListener("keydown", e => e.code === "Space" && jump());
-canvas.addEventListener("touchstart", jump);
+  player.update(ctx, groundY);
+  drawUI(ctx, width, height, Math.floor(score), hitCount, stageManager.elapsed, safePadding);
 
-// ====== 리셋 ======
-function resetGame() {
-  obstacles = [];
-  items = [];
-  floatingTexts = [];
-  score = 0;
-  gameOver = false;
-  gameClear = false;
-  baseSpeed = 8;
-  currentBg = 0;
-  startTime = null;
-  hitCount = 0;
-  lastHitTime = 0;
-  player.y = groundY - player.h;
-  player.vy = 0;
-  player.jumping = false;
-  player.jumpCount = 0;
+  // ⚠️ 장애물 충돌 처리 (공중 포함)
+  if (stageManager.elapsed > 1) {
+    stageManager.obstacles.forEach(o => {
+      if (checkCollision(player, o) && !player.invincible && !o.fadeOut) {
+        hitCount++;
+        player.hit();
+
+        // 💥 점수 차감
+        score = Math.max(0, score - 20);
+        floatingTexts.push({
+          text: "-20",
+          x: player.x + player.w / 2,
+          y: player.y - 20,
+          alpha: 1,
+          dy: -1
+        });
+
+        // 💨 공중 장애물은 자연스럽게 사라지기
+        if (o.fall) o.fadeOut = true;
+
+        if (hitCount >= maxHits) gameOver = true;
+      }
+    });
+  }
+
+  // 🟡 아이템 충돌 처리
+  stageManager.items = stageManager.items.filter(item => {
+    if (checkCollision(player, item)) {
+      score += 50;
+      floatingTexts.push({
+        text: "+50",
+        x: player.x + player.w / 2,
+        y: player.y - 20,
+        alpha: 1,
+        dy: -1
+      });
+      return false;
+    }
+    return true;
+  });
+
+  // 떠오르는 텍스트
+  floatingTexts = floatingTexts.filter(f => {
+    f.y += f.dy || -1;
+    f.alpha -= 0.02;
+    if (f.alpha <= 0) return false;
+
+    ctx.globalAlpha = f.alpha;
+    ctx.fillStyle = f.text.startsWith("+") ? "gold" : "red";
+    ctx.font = `${Math.floor(height * 0.03)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha = 1;
+    return true;
+  });
+
   requestAnimationFrame(loop);
 }
 
-// ====== 충돌 판정 ======
-function checkCollision(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-}
-
-// ====== 배경 전환 ======
-function updateStageByTime(currentTime) {
-  if (!startTime) startTime = currentTime;
-  const elapsed = (currentTime - startTime) / 1000;
-  if (elapsed >= 50) currentBg = 4;
-  else if (elapsed >= 35) currentBg = 3;
-  else if (elapsed >= 20) currentBg = 2;
-  else if (elapsed >= 10) currentBg = 1;
-  else currentBg = 0;
-  if (elapsed >= 60) gameClear = true;
-  return elapsed;
-}
-
-// ====== 장애물 스타일 ======
-const obstacleStyles = [
-  { color: "#a0d8ef", shape: "circle" },
-  { color: "#7b7b7b", shape: "rect" },
-  { color: "#222", shape: "bar" },
-  { color: "#d32f2f", shape: "rect" },
-  { color: "#8e24aa", shape: "rect" },
-];
-
-// ====== UI ======
-function drawLives() {
-  const radius = Math.max(width, height) * 0.015;
-  const margin = radius * 0.6;
-  const y = safePadding + radius * 1.5;
-  const startX = width - (radius * 2 + margin) * 3;
-
-  for (let i = 0; i < 3; i++) {
-    const damage = Math.min(2, Math.max(0, hitCount - i * 2));
-    ctx.beginPath();
-    ctx.arc(startX + i * (radius * 2 + margin), y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#ff4444";
-    ctx.fill();
-
-    if (damage === 1) {
-      ctx.fillStyle = "rgba(255,255,255,0.8)";
-      ctx.beginPath();
-      ctx.arc(startX + i * (radius * 2 + margin), y, radius, -Math.PI / 2, Math.PI / 2);
-      ctx.lineTo(startX + i * (radius * 2 + margin), y);
-      ctx.closePath();
-      ctx.fill();
-    } else if (damage >= 2) {
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.beginPath();
-      ctx.arc(startX + i * (radius * 2 + margin), y, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-function drawProgressBar(elapsed) {
-  const totalTime = 60;
-  const progressRatio = Math.min(elapsed / totalTime, 1);
-  const barWidth = width * 0.45;
-  const barHeight = height * 0.015;
-  const barX = (width - barWidth) / 2;
-  const barY = safePadding + barHeight * 2;
-
-  ctx.fillStyle = "#ccc";
-  ctx.fillRect(barX, barY, barWidth, barHeight);
-
-  const indicatorX = barX + progressRatio * barWidth - 3;
-  ctx.fillStyle = "#00b050";
-  ctx.fillRect(indicatorX, barY - barHeight * 0.4, 6, barHeight * 1.8);
-}
-
-function drawUI(elapsed) {
-  const fontSize = Math.max(width, height) * 0.03; // 비율 기반 글씨 크기
-  ctx.fillStyle = "black";
-  ctx.font = `bold ${fontSize}px Arial`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  ctx.fillText(`점수: ${score}`, width * 0.05, safePadding + height * 0.01);
-
-  drawProgressBar(elapsed);
-  drawLives();
-}
-
-
-// ====== 시작 화면 ======
-function drawStartScreen() {
-  ctx.fillStyle = "#fff176";
-  const boxW = width * 0.7;
-  const boxH = height * 0.15;
-  const x = (width - boxW) / 2;
-  const y = (height - boxH) / 2;
-
-  ctx.fillRect(x, y, boxW, boxH);
-  ctx.strokeStyle = "#333";
-  ctx.strokeRect(x, y, boxW, boxH);
-
-  ctx.fillStyle = "black";
-  ctx.font = `bold ${height * 0.03}px Arial`;
-  ctx.textAlign = "center";
-  ctx.fillText(
-    "스페이스바 또는 화면을 탭하여 게임을 시작하세요",
-    width / 2,
-    y + boxH / 2 + height * 0.01
+function checkCollision(player, obj) {
+  return (
+    player.x < obj.x + obj.w &&
+    player.x + player.w > obj.x &&
+    player.y < obj.y + obj.h &&
+    player.y + player.h > obj.y
   );
 }
 
-// ====== 게임 루프 ======
-function loop(timestamp) {
-  if (gameOver) return drawEnding("GAME OVER");
-  if (gameClear) return drawEnding("MISSION CLEAR!", "#00ff88");
-
-  const elapsed = updateStageByTime(timestamp);
-  const bgColors = ["#87cefa", "#90ee90", "#fff176", "#ffb74d", "#b0bec5"];
-  ctx.fillStyle = bgColors[currentBg];
+function drawClearScreen() {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, width, height);
 
-  player.y += player.vy;
-  player.vy += player.gravity;
-  if (player.y >= groundY - player.h) {
-    player.y = groundY - player.h;
-    player.vy = 0;
-    player.jumping = false;
-    player.jumpCount = 0;
-  }
-
-  if (playerImage.complete)
-    ctx.drawImage(playerImage, player.x, player.y, player.w, player.h);
-  else {
-    ctx.fillStyle = "green";
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-  }
-
-  let currentSpeed = baseSpeed + Math.floor(score / 500);
-
-  spawnTimer++;
-  if (spawnTimer > 90 - Math.min(score / 50, 60)) {
-    obstacles.push({ x: width, y: groundY - 40, w: 30, h: 40, stage: currentBg });
-    spawnTimer = 0;
-  }
-
-  itemTimer++;
-  if (itemTimer > 500 + Math.random() * 800) {
-    items.push({
-      x: width + 30,
-      y: groundY - 100 - Math.random() * 150,
-      r: 15,
-      stage: currentBg,
-    });
-    itemTimer = 0;
-  }
-
-  obstacles.forEach(o => {
-    o.x -= currentSpeed;
-    drawObstacle(o, obstacleStyles[o.stage]);
-    if (checkCollision(player, o)) {
-      const now = performance.now();
-      if (now - lastHitTime > 500) {
-        hitCount++;
-        lastHitTime = now;
-      }
-      obstacles = obstacles.filter(obs => obs !== o);
-      if (hitCount >= maxHits) gameOver = true;
-    }
-  });
-  obstacles = obstacles.filter(o => o.x + o.w > 0);
-
-  items.forEach(it => {
-    it.x -= currentSpeed;
-    drawStar(it.x, it.y, it.r);
-    if (
-      checkCollision(player, { x: it.x - it.r, y: it.y - it.r, w: it.r * 2, h: it.r * 2 })
-    ) {
-      score += 50;
-      floatingTexts.push({ x: it.x, y: it.y, text: "+50", alpha: 1 });
-      items = items.filter(i => i !== it);
-    }
-  });
-  items = items.filter(it => it.x + it.r > 0);
-
-  score++;
-  drawUI(elapsed);
-  drawFloatingTexts();
-
-  requestAnimationFrame(loop);
-}
-
-function drawObstacle(o, style) {
-  ctx.fillStyle = style.color;
-  if (style.shape === "circle") {
-    ctx.beginPath();
-    ctx.arc(o.x + o.w / 2, o.y + o.h / 2, o.w / 2, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (style.shape === "bar") {
-    ctx.fillRect(o.x, o.y + o.h - 10, o.w, 10);
-  } else {
-    ctx.fillRect(o.x, o.y, o.w, o.h);
-  }
-}
-
-function drawStar(x, y, r, color = "yellow") {
-  ctx.save();
-  ctx.beginPath();
-  ctx.translate(x, y);
-  ctx.moveTo(0, -r);
-  for (let i = 0; i < 5; i++) {
-    ctx.rotate(Math.PI / 5);
-    ctx.lineTo(0, -r * 0.5);
-    ctx.rotate(Math.PI / 5);
-    ctx.lineTo(0, -r);
-  }
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawFloatingTexts() {
-  floatingTexts.forEach(ft => {
-    ctx.fillStyle = `rgba(255,255,255,${ft.alpha})`;
-    ctx.font = "bold 24px Arial";
-    ctx.fillText(ft.text, ft.x, ft.y);
-    ft.y -= 1;
-    ft.alpha -= 0.02;
-  });
-  floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
-}
-
-function drawEnding(text, color = "white") {
-  ctx.fillStyle = "black";
-  ctx.globalAlpha = 0.7;
-  ctx.fillRect(0, 0, width, height);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = color;
-  ctx.font = "36px Arial";
+  ctx.fillStyle = "white";
   ctx.textAlign = "center";
-  ctx.fillText(text, width / 2, height / 2);
-  ctx.font = "24px Arial";
-  ctx.fillText("탭하거나 스페이스로 다시 시작", width / 2, height / 2 + 40);
+  ctx.font = `bold ${Math.floor(height * 0.08)}px Arial`;
+  ctx.fillText("🎉 CLEAR! 🎉", width / 2, height / 2 - 20);
+
+  ctx.font = `${Math.floor(height * 0.04)}px Arial`;
+  ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
+  ctx.fillText("스페이스를 눌러 다시 시작", width / 2, height / 2 + 100);
 }
 
-function renderStartScreen() {
-  ctx.fillStyle = "#87cefa";
-  ctx.fillRect(0, 0, width, height);
-  drawStartScreen();
-}
-
-renderStartScreen();
+drawStartScreen();
