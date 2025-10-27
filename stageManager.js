@@ -12,6 +12,19 @@ export class StageManager {
     this.groundY = height - 50;
     this.startTime = null;
     this.lastSpawn = 0;
+
+    this.bgImages = [
+      this.loadImage("assets/img/stage1_background.png"),
+      this.loadImage("assets/img/stage2_background.png"),
+      this.loadImage("assets/img/stage3_background.png"),
+      this.loadImage("assets/img/stage4_background.png")
+    ];
+  }
+
+  loadImage(src) {
+    const img = new Image();
+    img.src = src;
+    return img;
   }
 
   reset() {
@@ -32,10 +45,15 @@ export class StageManager {
       this.currentStage++;
     }
 
-    // 배경 색상
-    const bgColors = ["#87cefa", "#ffd700", "#90ee90", "#ffa07a"];
-    ctx.fillStyle = bgColors[this.currentStage];
-    ctx.fillRect(0, 0, width, height);
+    // ✅ 배경 이미지 표시
+    const bg = this.bgImages[this.currentStage];
+    if (bg && bg.complete) {
+      ctx.drawImage(bg, 0, 0, width, height);
+    } else {
+      // 이미지 로드 전 임시 배경
+      ctx.fillStyle = "#87cefa";
+      ctx.fillRect(0, 0, width, height);
+    }
 
     // 난이도 계산
     const difficulty = this.getDifficulty(this.currentStage);
@@ -62,92 +80,116 @@ export class StageManager {
   }
 
   spawnObstacle(difficulty) {
-    const colorSets = [
-      { sky: "red", ground: "yellow" },
-      { sky: "orange", ground: "green" },
-      { sky: "lightblue", ground: "blue" },
-      { sky: "gray", ground: "purple" }
-    ];
-    const c = colorSets[this.currentStage];
+  // 스테이지별 이미지 세트
+  const imageSets = [
+    // 🌨️ Stage 1 (눈 내리는 밭)
+    {
+      ground: "assets/img/stage1_groundsnow.png",
+      sky: "assets/img/stage1_skysnow.png"
+    },
+    // 🚃 Stage 2 (기차 내부)
+    {
+      ground: null, // 없음
+      sky: "assets/img/stage1_skysnow.png"
+    },
+    // 🌇 Stage 3 (서울 외곽)
+    {
+      ground: "assets/img/stage1_groundsnow.png",
+      sky: null // 없음
+    },
+    // 🏙️ Stage 4 (서울 중심)
+    {
+      ground1: "assets/img/stage1_skysnow.png",
+      ground2: "assets/img/stage1_groundsnow.png", // 서로 다른 이미지
+      sky: null
+    }
+  ];
 
-    // 👇 스테이지별 조건 분기
-    switch (this.currentStage) {
-      // ✅ Stage 1: 위 + 아래
-      case 0:
-        this.obstacles.push(
-          new Obstacle(
-            this.width,
-            this.height - 90,
-            30, 40,
-            c.ground,
-            "rect",
-            difficulty.speed
-          ),
-          new Obstacle(
-            Math.random() * this.width,
-            -50,
-            30, 30,
-            c.sky,
-            "circle",
-            difficulty.speed,
-            true
-          )
-        );
-        break;
+  const set = imageSets[this.currentStage];
 
-      // ✅ Stage 2: 위 방해물만
-      case 1:
-        this.obstacles.push(
-          new Obstacle(
-            Math.random() * this.width,
-            -50,
-            30, 30,
-            c.sky,
-            "circle",
-            difficulty.speed,
-            true
-          )
-        );
-        break;
+  switch (this.currentStage) {
+    // ✅ Stage 1: 위 1개 + 아래 1개
+    case 0: {
+      const groundW = 60, groundH = 60;
+      const ground = new Obstacle(
+        this.width,
+        this.height - groundH - 50, // 화면 아래에서 약간 띄움
+        groundW, groundH,
+        difficulty.speed
+      );
+      ground.loadImage(set.ground);
 
-      // ✅ Stage 3: 아래 방해물 1개
-      case 2:
-        this.obstacles.push(
-          new Obstacle(
-            this.width,
-            this.height - 90,
-            30, 40,
-            c.ground,
-            "rect",
-            difficulty.speed
-          )
-        );
-        break;
+      const skyW = 45, skyH = 45;
+      const sky = new Obstacle(
+        Math.random() * this.width,
+        -skyH,
+        skyW, skyH,
+        difficulty.speed,
+        true
+      );
+      sky.loadImage(set.sky);
 
-      // ✅ Stage 4: 아래 방해물 2개
-      case 3:
-        const offset = 120 + Math.random() * 60;
-        this.obstacles.push(
-          new Obstacle(
-            this.width,
-            this.height - 90,
-            30, 40,
-            c.ground,
-            "rect",
-            difficulty.speed
-          ),
-          new Obstacle(
-            this.width + offset,
-            this.height - 90,
-            30, 40,
-            c.ground,
-            "rect",
-            difficulty.speed
-          )
-        );
-        break;
+      this.obstacles.push(ground, sky);
+      break;
+    }
+
+    // ✅ Stage 2: 공중 방해물만
+    case 1: {
+      const airW = 50, airH = 50;
+      const air = new Obstacle(
+        Math.random() * this.width,
+        -airH,
+        airW, airH,
+        difficulty.speed,
+        true
+      );
+      air.loadImage(set.sky);
+      this.obstacles.push(air);
+      break;
+    }
+
+    // ✅ Stage 3: 지상 방해물 1개만
+    case 2: {
+      const groundW = 70, groundH = 70;
+      const ground = new Obstacle(
+        this.width,
+        this.height - groundH - 50,
+        groundW, groundH,
+        difficulty.speed
+      );
+      ground.loadImage(set.ground);
+      this.obstacles.push(ground);
+      break;
+    }
+
+    // ✅ Stage 4: 지상 방해물 2개 (서로 다른 이미지)
+    case 3: {
+      const offset = 120 + Math.random() * 60;
+      const groundW = 60, groundH = 60;
+
+      const ground1 = new Obstacle(
+        this.width,
+        this.height - groundH - 50,
+        groundW, groundH,
+        difficulty.speed
+      );
+      ground1.loadImage(set.ground1);
+
+      const ground2 = new Obstacle(
+        this.width + offset,
+        this.height - groundH - 50,
+        groundW, groundH,
+        difficulty.speed
+      );
+      ground2.loadImage(set.ground2);
+
+      this.obstacles.push(ground1, ground2);
+      break;
     }
   }
+}
+
+
 
   getDifficulty(stage) {
     switch (stage) {

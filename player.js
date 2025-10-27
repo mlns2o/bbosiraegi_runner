@@ -2,7 +2,7 @@ export class Player {
   constructor(width, height) {
     this.x = 80;
     this.h = height * 0.12;
-    this.w = width * 0.04;
+    this.w = width * 0.08;
     this.y = height - 50 - this.h;
     this.vy = 0;
     this.gravity = 0.8;
@@ -19,6 +19,15 @@ export class Player {
     this.baseX = 80;
     this.boostSpeed = 4;
     this.maxOffset = 120;
+
+    // ✅ 캐릭터 이미지 추가
+    this.image = new Image();
+    this.image.src = "assets/img/stage1_siraegi.png";
+
+    this.imageSlide = new Image();
+    this.imageSlide.src = "assets/img/stage1_siraegi.png";
+
+
   }
 
   jump() {
@@ -40,6 +49,9 @@ export class Player {
     }
 
     this.slideMode = active;
+
+    // ✅ 슬라이드 상태 이미지로 전환
+    
   }
 
   hit() {
@@ -89,9 +101,14 @@ export class Player {
     }
 
     ctx.save();
-    ctx.globalAlpha = this.invincible && this.flash ? 0.4 : 1;
-    ctx.fillStyle = "green";
-    ctx.fillRect(this.x, this.y, this.w, this.h);
+    if (this.invincible && this.flash) ctx.globalAlpha = 0.4;
+    if (this.image && this.image.complete) {
+      ctx.drawImage(this.image, this.x, this.y, this.w, this.h);
+    } else {
+      // 이미지 로드 안 된 경우 대비
+      ctx.fillStyle = "green";
+      ctx.fillRect(this.x, this.y, this.w, this.h);
+    }
     ctx.restore();
   }
 }

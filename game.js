@@ -88,8 +88,24 @@ document.addEventListener("keydown", e => {
         return;
       }
 
-      player.jump();
+      player.jump(); // ⬆️ 점프 (이단 점프 포함)
     }
+  }
+
+  // 🟧 [2] 슬라이드: 오른쪽 방향키 한 번 눌렸을 때
+  if (e.code === "ArrowRight") {
+    if (!gameStarted) {
+      gameStarted = true;
+      requestAnimationFrame(loop);
+      return;
+    }
+    if (gameOver) {
+      resetGame();
+      return;
+    }
+
+    player.slide(true, groundY);
+    setTimeout(() => player.slide(false, groundY), 500); // 0.5초 후 자동 복귀
   }
 });
 
@@ -101,29 +117,58 @@ document.addEventListener("keyup", e => {
   }
 });
 
+
+// 🟩 [3] 모바일 제스처
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
-  spacePressTime = Date.now();
-  spaceHeld = true;
-
-  if (!gameStarted) {
-    gameStarted = true;
-    requestAnimationFrame(loop);
-    return;
-  }
-  if (gameOver) {
-    resetGame();
-    return;
-  }
-
-  player.jump();
+  const touch = e.touches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  touchStartTime = Date.now();
 });
 
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
-  const holdTime = Date.now() - spacePressTime;
-  spaceHeld = false;
-  if (holdTime > 200) player.slide(false, groundY);
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+  const holdTime = Date.now() - touchStartTime;
+
+  // 🟢 오른쪽 스와이프 → 슬라이드
+  if (Math.abs(dx) > 50 && dx > Math.abs(dy)) {
+    if (!gameStarted) {
+      gameStarted = true;
+      requestAnimationFrame(loop);
+      return;
+    }
+    if (gameOver) {
+      resetGame();
+      return;
+    }
+
+    player.slide(true, groundY);
+    setTimeout(() => player.slide(false, groundY), 500);
+    return;
+  }
+
+  // 🟢 짧게 터치 → 점프
+  if (holdTime < 200) {
+    if (!gameStarted) {
+      gameStarted = true;
+      requestAnimationFrame(loop);
+      return;
+    }
+    if (gameOver) {
+      resetGame();
+      return;
+    }
+
+    player.jump();
+  }
 });
 
 canvas.setAttribute("tabindex", "0");
@@ -173,8 +218,6 @@ function loop(timestamp) {
 
         // 💨 공중 장애물은 자연스럽게 사라지기
         if (o.fall) o.fadeOut = true;
-
-        if (hitCount >= maxHits) gameOver = true;
       }
     });
   }
@@ -210,8 +253,30 @@ function loop(timestamp) {
     return true;
   });
 
+  // 💀 게임 오버 처리
+  if (hitCount >= maxHits) {
+    gameOver = true;
+    drawGameOverScreen(); // 👈 새 함수 호출
+    return;
+  }
+
   requestAnimationFrame(loop);
 }
+
+function drawGameOverScreen() {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+  ctx.font = `bold ${Math.floor(height * 0.08)}px Arial`;
+  ctx.fillText("💥 GAME OVER 💥", width / 2, height / 2 - 20);
+
+  ctx.font = `${Math.floor(height * 0.04)}px Arial`;
+  ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
+  ctx.fillText("스페이스를 눌러 다시 시작", width / 2, height / 2 + 100);
+}
+
 
 function checkCollision(player, obj) {
   return (
