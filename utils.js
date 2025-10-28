@@ -31,8 +31,22 @@ export function resizeCanvas(canvas, ctx) {
 
 // 충돌 감지 (AABB 방식)
 export function checkCollision(a, b) {
-  return a.x < b.x + b.w &&
-         a.x + a.w > b.x &&
-         a.y < b.y + b.h &&
-         a.y + a.h > b.y;
+  const shrinkA = 0.8; // 캐릭터 판정 80%로 축소
+  const shrinkB = 0.7; // 장애물 판정 70%로 축소
+
+  const ax = a.x + (a.w * (1 - shrinkA)) / 2;
+  const ay = a.y + (a.h * (1 - shrinkA)) / 2;
+  const aw = a.w * shrinkA;
+  const ah = a.h * shrinkA;
+
+  const bx = b.x + (b.w * (1 - shrinkB)) / 2;
+  const by = b.y + (b.h * (1 - shrinkB)) / 2;
+  const bw = b.w * shrinkB;
+  const bh = b.h * shrinkB;
+
+  return ax < bx + bw &&
+         ax + aw > bx &&
+         ay < by + bh &&
+         ay + ah > by;
 }
+

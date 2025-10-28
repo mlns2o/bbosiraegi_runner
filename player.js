@@ -1,8 +1,8 @@
 export class Player {
   constructor(width, height) {
     this.x = 80;
-    this.h = height * 0.12;
-    this.w = width * 0.08;
+    this.h = height * 0.36 ;
+    this.w = width * 0.15;
     this.y = height - 50 - this.h;
     this.vy = 0;
     this.gravity = 0.8;
@@ -26,9 +26,16 @@ export class Player {
 
     this.imageSlide = new Image();
     this.imageSlide.src = "assets/img/stage1_siraegi.png";
-
-
   }
+
+  setSprite(src) {
+    this.image = new Image();
+    this.image.src = src;
+
+    this.imageSlide = new Image();
+    this.imageSlide.src = src;
+  }
+  
 
   jump() {
     // 슬라이드 중엔 점프 불가
@@ -49,9 +56,6 @@ export class Player {
     }
 
     this.slideMode = active;
-
-    // ✅ 슬라이드 상태 이미지로 전환
-    
   }
 
   hit() {
@@ -61,8 +65,7 @@ export class Player {
 
   reset(width, height) {
     this.x = 80;
-    this.h = height * 0.12;
-    this.w = width * 0.04;
+
     this.y = height - 50 - this.h;
     this.vy = 0;
     this.jumping = false;

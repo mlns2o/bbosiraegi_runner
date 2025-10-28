@@ -1,20 +1,55 @@
+// game.js
 import { Player } from "./player.js";
 import { StageManager } from "./stageManager.js";
 import { drawUI } from "./ui.js";
-import { resizeCanvas } from "./utils.js";
+import { resizeCanvas, checkCollision } from "./utils.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 let width, height, groundY, safePadding;
 let player, stageManager;
-let gameStarted = false;
-let gameOver = false;
 let floatingTexts = [];
 let score = 0;
 let hitCount = 0;
 const maxHits = 6;
 let lastTime = 0;
+
+// 🎮 상태 관리
+let gameState = "start"; // "start" | "howto" | "playing" | "gameover" | "clear"
+
+// ====================== 화면 ======================
+// ✅ 시작화면
+let startImageLoaded = false;
+let startImage = new Image();
+startImage.src = "assets/img/start_background.png";
+startImage.onload = () => {
+  startImageLoaded = true;
+  if (gameState === "start") drawStartScreen();
+};
+
+function drawStartScreen() {
+  ctx.clearRect(0, 0, width, height);
+  if (startImageLoaded) {
+    ctx.drawImage(startImage, 0, 0, width, height);
+  }
+}
+
+// ✅ 설명화면
+let howToLoaded = false;
+let howToImg = new Image();
+howToImg.src = "assets/img/start_notice.png";
+howToImg.onload = () => {
+  howToLoaded = true;
+  if (gameState === "howto") drawHowToScreen();
+};
+
+function drawHowToScreen() {
+  ctx.clearRect(0, 0, width, height);
+  if (howToLoaded) {
+    ctx.drawImage(howToImg, 0, 0, width, height);
+  }
+}
 
 function setupCanvas() {
   const size = resizeCanvas(canvas, ctx);
@@ -22,6 +57,9 @@ function setupCanvas() {
   height = size.height;
   safePadding = size.safePadding;
   groundY = height - 50;
+
+  if (gameState === "start") drawStartScreen();
+  else if (gameState === "howto") drawHowToScreen();
 }
 setupCanvas();
 window.addEventListener("resize", setupCanvas);
@@ -29,201 +67,130 @@ window.addEventListener("resize", setupCanvas);
 player = new Player(width, height);
 stageManager = new StageManager(width, height);
 
-function drawStartScreen() {
-  ctx.fillStyle = "#87cefa";
+function drawGameOverScreen() {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.fillRect(0, 0, width, height);
-
-
-  const boxWidth = width * 0.5;
-  const boxHeight = height * 0.25;
-  const boxX = (width - boxWidth) / 2;
-  const boxY = (height - boxHeight) / 2;
-
-  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "white";
   ctx.textAlign = "center";
-  ctx.font = `bold ${Math.floor(height * 0.05)}px Arial`;
-  ctx.fillText("뽀시래기 러너", width / 2, boxY + boxHeight * 0.45);
-
-  ctx.font = `${Math.floor(height * 0.03)}px Arial`;
-  ctx.fillText("스페이스를 눌러 시작합니다", width / 2, boxY + boxHeight * 0.75);
+  ctx.font = `bold ${Math.floor(height * 0.08)}px Arial`;
+  ctx.fillText("💥 GAME OVER 💥", width / 2, height / 2 - 20);
+  ctx.font = `${Math.floor(height * 0.04)}px Arial`;
+  ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
+  ctx.fillText("스페이스 또는 터치로 다시 시작", width / 2, height / 2 + 100);
 }
 
+function drawClearScreen() {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+  ctx.font = `bold ${Math.floor(height * 0.08)}px Arial`;
+  ctx.fillText("🎉 CLEAR! 🎉", width / 2, height / 2 - 20);
+  ctx.font = `${Math.floor(height * 0.04)}px Arial`;
+  ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
+  ctx.fillText("스페이스 또는 터치로 다시 시작", width / 2, height / 2 + 100);
+}
+
+// ====================== 리셋 ======================
 function resetGame() {
-  gameOver = false;
   floatingTexts = [];
   score = 0;
   hitCount = 0;
   lastTime = 0;
   player.reset(width, height);
   stageManager.reset();
-
-  ctx.clearRect(0, 0, width, height);
-  stageManager.update(0, ctx, width, height);
-  player.update(ctx, groundY);
-  drawUI(ctx, width, height, score, hitCount, 0, safePadding);
-
-  setTimeout(() => requestAnimationFrame(loop), 100);
 }
 
+// ====================== 입력 처리 ======================
 let spaceHeld = false;
 let spacePressTime = 0;
 
-document.addEventListener("keydown", e => {
-  if (e.code === "Space" || e.code === "Tab") {
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" || e.code === "Tab" || e.code === "Enter") {
     if (!spaceHeld) {
       spaceHeld = true;
       spacePressTime = Date.now();
-
-      if (!gameStarted) {
-        gameStarted = true;
-        requestAnimationFrame(loop);
-        return;
-      }
-
-      if (gameOver) {
-        resetGame();
-        return;
-      }
-
-      player.jump(); // ⬆️ 점프 (이단 점프 포함)
+      handleInput();
     }
   }
 
-  // 🟧 [2] 슬라이드: 오른쪽 방향키 한 번 눌렸을 때
-  if (e.code === "ArrowRight") {
-    if (!gameStarted) {
-      gameStarted = true;
-      requestAnimationFrame(loop);
-      return;
-    }
-    if (gameOver) {
-      resetGame();
-      return;
-    }
-
-    player.slide(true, groundY);
-    setTimeout(() => player.slide(false, groundY), 500); // 0.5초 후 자동 복귀
-  }
-});
-
-document.addEventListener("keyup", e => {
-  if (e.code === "Space" || e.code === "Tab") {
-    const holdTime = Date.now() - spacePressTime;
-    spaceHeld = false;
-    if (holdTime > 200) player.slide(false, groundY);
-  }
-});
-
-
-// 🟩 [3] 모바일 제스처
-let touchStartX = 0;
-let touchStartY = 0;
-let touchStartTime = 0;
-
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-  const touch = e.touches[0];
-  touchStartX = touch.clientX;
-  touchStartY = touch.clientY;
-  touchStartTime = Date.now();
-});
-
-canvas.addEventListener("touchend", e => {
-  e.preventDefault();
-  const touch = e.changedTouches[0];
-  const dx = touch.clientX - touchStartX;
-  const dy = touch.clientY - touchStartY;
-  const holdTime = Date.now() - touchStartTime;
-
-  // 🟢 오른쪽 스와이프 → 슬라이드
-  if (Math.abs(dx) > 50 && dx > Math.abs(dy)) {
-    if (!gameStarted) {
-      gameStarted = true;
-      requestAnimationFrame(loop);
-      return;
-    }
-    if (gameOver) {
-      resetGame();
-      return;
-    }
-
+  if (e.code === "ArrowRight" && gameState === "playing") {
     player.slide(true, groundY);
     setTimeout(() => player.slide(false, groundY), 500);
-    return;
-  }
-
-  // 🟢 짧게 터치 → 점프
-  if (holdTime < 200) {
-    if (!gameStarted) {
-      gameStarted = true;
-      requestAnimationFrame(loop);
-      return;
-    }
-    if (gameOver) {
-      resetGame();
-      return;
-    }
-
-    player.jump();
   }
 });
 
-canvas.setAttribute("tabindex", "0");
-canvas.focus();
-canvas.addEventListener("click", () => canvas.focus());
+document.addEventListener("keyup", (e) => {
+  if (["Space", "Tab", "Enter"].includes(e.code)) spaceHeld = false;
+});
 
+canvas.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  handleInput();
+});
+
+// 🎮 상태별 입력 처리
+function handleInput() {
+  switch (gameState) {
+    case "start":
+      gameState = "howto";
+      drawHowToScreen();
+      break;
+    case "howto":
+      gameState = "playing";
+      requestAnimationFrame(loop);
+      break;
+    case "playing":
+      player.jump();
+      break;
+    case "gameover":
+    case "clear":
+      resetGame();
+      gameState = "start";
+      drawStartScreen();
+      break;
+  }
+}
+
+// ====================== 메인 루프 ======================
 function loop(timestamp) {
-  if (!gameStarted || gameOver) return;
+  if (gameState !== "playing") return;
 
   if (!lastTime) lastTime = timestamp;
   const delta = (timestamp - lastTime) / 1000;
   lastTime = timestamp;
 
-  stageManager.update(timestamp, ctx, width, height);
+  stageManager.update(timestamp, ctx, width, height, player);
 
   if (stageManager.isCleared()) {
-    gameOver = true;
+    gameState = "clear";
     drawClearScreen();
     return;
   }
 
   score += 10 * delta;
-
-  if (spaceHeld && !player.jumping && Date.now() - spacePressTime > 200) {
-    player.slide(true, groundY);
-  }
-
   player.update(ctx, groundY);
   drawUI(ctx, width, height, Math.floor(score), hitCount, stageManager.elapsed, safePadding);
 
-  // ⚠️ 장애물 충돌 처리 (공중 포함)
-  if (stageManager.elapsed > 1) {
-    stageManager.obstacles.forEach(o => {
-      if (checkCollision(player, o) && !player.invincible && !o.fadeOut) {
-        hitCount++;
-        player.hit();
+  // 충돌 처리
+  stageManager.obstacles.forEach((o) => {
+    if (checkCollision(player, o) && !player.invincible && !o.fadeOut) {
+      hitCount++;
+      player.hit();
+      score = Math.max(0, score - 20);
+      floatingTexts.push({
+        text: "-20",
+        x: player.x + player.w / 2,
+        y: player.y - 20,
+        alpha: 1,
+        dy: -1,
+      });
+      if (o.fall) o.fadeOut = true;
+    }
+  });
 
-        // 💥 점수 차감
-        score = Math.max(0, score - 20);
-        floatingTexts.push({
-          text: "-20",
-          x: player.x + player.w / 2,
-          y: player.y - 20,
-          alpha: 1,
-          dy: -1
-        });
-
-        // 💨 공중 장애물은 자연스럽게 사라지기
-        if (o.fall) o.fadeOut = true;
-      }
-    });
-  }
-
-  // 🟡 아이템 충돌 처리
-  stageManager.items = stageManager.items.filter(item => {
+  // 아이템 충돌 처리
+  stageManager.items = stageManager.items.filter((item) => {
     if (checkCollision(player, item)) {
       score += 50;
       floatingTexts.push({
@@ -231,7 +198,7 @@ function loop(timestamp) {
         x: player.x + player.w / 2,
         y: player.y - 20,
         alpha: 1,
-        dy: -1
+        dy: -1,
       });
       return false;
     }
@@ -239,11 +206,10 @@ function loop(timestamp) {
   });
 
   // 떠오르는 텍스트
-  floatingTexts = floatingTexts.filter(f => {
+  floatingTexts = floatingTexts.filter((f) => {
     f.y += f.dy || -1;
     f.alpha -= 0.02;
     if (f.alpha <= 0) return false;
-
     ctx.globalAlpha = f.alpha;
     ctx.fillStyle = f.text.startsWith("+") ? "gold" : "red";
     ctx.font = `${Math.floor(height * 0.03)}px Arial`;
@@ -253,52 +219,16 @@ function loop(timestamp) {
     return true;
   });
 
-  // 💀 게임 오버 처리
+  // 게임 오버 처리
   if (hitCount >= maxHits) {
-    gameOver = true;
-    drawGameOverScreen(); // 👈 새 함수 호출
+    gameState = "gameover";
+    drawGameOverScreen();
     return;
   }
 
   requestAnimationFrame(loop);
 }
 
-function drawGameOverScreen() {
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.fillStyle = "white";
-  ctx.textAlign = "center";
-  ctx.font = `bold ${Math.floor(height * 0.08)}px Arial`;
-  ctx.fillText("💥 GAME OVER 💥", width / 2, height / 2 - 20);
-
-  ctx.font = `${Math.floor(height * 0.04)}px Arial`;
-  ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
-  ctx.fillText("스페이스를 눌러 다시 시작", width / 2, height / 2 + 100);
-}
 
 
-function checkCollision(player, obj) {
-  return (
-    player.x < obj.x + obj.w &&
-    player.x + player.w > obj.x &&
-    player.y < obj.y + obj.h &&
-    player.y + player.h > obj.y
-  );
-}
 
-function drawClearScreen() {
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.fillStyle = "white";
-  ctx.textAlign = "center";
-  ctx.font = `bold ${Math.floor(height * 0.08)}px Arial`;
-  ctx.fillText("🎉 CLEAR! 🎉", width / 2, height / 2 - 20);
-
-  ctx.font = `${Math.floor(height * 0.04)}px Arial`;
-  ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
-  ctx.fillText("스페이스를 눌러 다시 시작", width / 2, height / 2 + 100);
-}
-
-drawStartScreen();

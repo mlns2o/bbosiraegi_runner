@@ -8,7 +8,7 @@ heartHalf.src = "assets/img/heart_half.png";
 const progressBarBg = new Image();
 progressBarBg.src = "assets/img/bar.png";   // 전체 바
 const progressMarker = new Image();
-progressMarker.src = "assets/img/item.png";  // 현재 위치 마커
+progressMarker.src = "assets/img/bbosiraegi.png";  // 현재 위치 마커
 
 export function drawUI(ctx, width, height, score, hitCount, elapsed, safePadding = 0) {
   const fontSize = Math.floor(width * 0.04);
@@ -52,7 +52,7 @@ export function drawUI(ctx, width, height, score, hitCount, elapsed, safePadding
   ctx.drawImage(progressBarBg, barX, barY, barWidth, barHeight);
 
   // 🔹 2️⃣ 현재 위치 마커
-  const markerWidth = barWidth * 0.04; // 전체 바 길이 대비 약 4%
+  const markerWidth = barWidth * 0.2; 
   const markerHeight = barHeight * 1.1;
   const markerX = barX + ratio * (barWidth - markerWidth);
   const markerY = barY - (markerHeight - barHeight) / 2;
