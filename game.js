@@ -76,7 +76,7 @@ function setupCanvas() {
   groundY = height - 50;
 
   if (gameState === "start") drawStartScreen();
-  else if (gameState === "story") drawHowToScreen();
+  else if (gameState === "story") drawStoryScreen();
   else if (gameState === "howto") drawHowToScreen();
 }
 setupCanvas();
@@ -147,13 +147,11 @@ canvas.addEventListener("touchend", (e) => {
   handleInput();
 });
 
-// ====================== 모바일 스와이프 감지 ======================
 // ====================== 모바일 터치 입력 ======================
 
+let lastTapTime = 0; // 두 번 탭 감지용
 let touchStartX = 0;
 let touchStartY = 0;
-let touchEndX = 0;
-let touchEndY = 0;
 
 canvas.addEventListener("touchstart", (e) => {
   if (e.touches.length === 1) {
@@ -165,36 +163,43 @@ canvas.addEventListener("touchstart", (e) => {
 canvas.addEventListener("touchend", (e) => {
   e.preventDefault();
 
-  if (e.changedTouches.length === 1) {
-    touchEndX = e.changedTouches[0].clientX;
-    touchEndY = e.changedTouches[0].clientY;
+  if (e.changedTouches.length !== 1) return;
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
 
-    const dx = touchEndX - touchStartX;
-    const dy = touchEndY - touchStartY;
+  // 👉 슬라이드 (오른쪽 스와이프)
+  if (Math.abs(dx) > Math.abs(dy) && dx > 50 && gameState === "playing") {
+    player.slide(true, groundY);
+    setTimeout(() => player.slide(false, groundY), 500);
+    return;
+  }
 
-    // 👉 오른쪽 스와이프 → 슬라이드
-    if (Math.abs(dx) > Math.abs(dy) && dx > 50 && gameState === "playing") {
-      player.slide(true, groundY);
-      setTimeout(() => player.slide(false, groundY), 500);
+  // 👆 일반 탭 (짧은 터치)
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+    // 상태별 동작 분리
+    if (["start", "story", "howto", "gameover", "clear"].includes(gameState)) {
+      handleInput(); // 화면 넘기기용
       return;
     }
 
-    // 👆 위로 스와이프 → 점프
-    if (Math.abs(dy) > Math.abs(dx) && dy < -50 && gameState === "playing") {
-      player.jump();
-      return;
-    }
+    if (gameState === "playing") {
+      // 🕒 더블탭 감지
+      const now = Date.now();
+      const timeDiff = now - lastTapTime;
+      lastTapTime = now;
 
-    // 👆👆 단순 탭 (짧은 터치) → 점프 (이단 점프 가능)
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-      if (["start", "story", "howto", "gameover", "clear"].includes(gameState)) {
-        handleInput(); // 화면 넘기기용
-      } else if (gameState === "playing") {
-        player.jump(); // ✅ 이중 점프 가능
+      if (timeDiff < 300) {
+        // 300ms 안에 두 번 탭 → 이단 점프
+        player.jump();
+      } else {
+        // 첫 탭 → 일반 점프
+        player.jump();
       }
     }
   }
 });
+
 
 
 
