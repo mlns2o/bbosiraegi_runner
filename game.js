@@ -148,8 +148,7 @@ canvas.addEventListener("touchend", (e) => {
 });
 
 // ====================== 모바일 터치 입력 ======================
-
-let lastTapTime = 0; // 두 번 탭 감지용
+let lastTapTime = 0; // 더블탭 간격 측정용
 let touchStartX = 0;
 let touchStartY = 0;
 
@@ -164,41 +163,40 @@ canvas.addEventListener("touchend", (e) => {
   e.preventDefault();
 
   if (e.changedTouches.length !== 1) return;
+
   const touch = e.changedTouches[0];
   const dx = touch.clientX - touchStartX;
   const dy = touch.clientY - touchStartY;
 
-  // 👉 슬라이드 (오른쪽 스와이프)
+  // 👉 오른쪽 스와이프 → 슬라이드
   if (Math.abs(dx) > Math.abs(dy) && dx > 50 && gameState === "playing") {
     player.slide(true, groundY);
     setTimeout(() => player.slide(false, groundY), 500);
     return;
   }
 
-  // 👆 일반 탭 (짧은 터치)
+  // 👆👆 탭 (짧은 터치) → 점프 (이단 점프 포함)
   if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-    // 상태별 동작 분리
     if (["start", "story", "howto", "gameover", "clear"].includes(gameState)) {
-      handleInput(); // 화면 넘기기용
+      handleInput(); // 화면 넘기기
       return;
     }
 
     if (gameState === "playing") {
-      // 🕒 더블탭 감지
       const now = Date.now();
       const timeDiff = now - lastTapTime;
       lastTapTime = now;
 
-      if (timeDiff < 300) {
-        // 300ms 안에 두 번 탭 → 이단 점프
-        player.jump();
+      // 350ms 이내 두 번 탭이면 — 두 번째 점프도 허용
+      if (timeDiff < 350) {
+        player.jump(); // 공중에서 이단 점프
       } else {
-        // 첫 탭 → 일반 점프
-        player.jump();
+        player.jump(); // 첫 점프
       }
     }
   }
 });
+
 
 
 
