@@ -76,7 +76,7 @@ function drawGameOverScreen() {
   ctx.fillText("💥 GAME OVER 💥", width / 2, height / 2 - 20);
   ctx.font = `${Math.floor(height * 0.04)}px Arial`;
   ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
-  ctx.fillText("스페이스 또는 터치로 다시 시작", width / 2, height / 2 + 100);
+  ctx.fillText("터치로 다시 시작", width / 2, height / 2 + 100);
 }
 
 function drawClearScreen() {
@@ -88,7 +88,7 @@ function drawClearScreen() {
   ctx.fillText("🎉 CLEAR! 🎉", width / 2, height / 2 - 20);
   ctx.font = `${Math.floor(height * 0.04)}px Arial`;
   ctx.fillText(`총 점수: ${Math.floor(score)}`, width / 2, height / 2 + 40);
-  ctx.fillText("스페이스 또는 터치로 다시 시작", width / 2, height / 2 + 100);
+  ctx.fillText("터치로 다시 시작", width / 2, height / 2 + 100);
 }
 
 // ====================== 리셋 ======================
@@ -264,7 +264,7 @@ function loop(timestamp) {
     if (f.alpha <= 0) return false;
     ctx.globalAlpha = f.alpha;
     ctx.fillStyle = f.text.startsWith("+") ? "gold" : "red";
-    ctx.font = `${Math.floor(height * 0.03)}px Arial`;
+    ctx.font = `bold ${Math.floor(height * 0.03)}px Arial`;
     ctx.textAlign = "center";
     ctx.fillText(f.text, f.x, f.y);
     ctx.globalAlpha = 1;

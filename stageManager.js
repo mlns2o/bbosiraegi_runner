@@ -36,7 +36,7 @@ export class StageManager {
 
     // 🚧 장애물 세트
     this.obstacleSets = [
-      { ground: "assets/img/stage1_groundsnow.png" },
+      { ground: "assets/img/stage1_skysnow.png" },
       { sky: "assets/img/stage2_obstacle.png" },
       { ground: "assets/img/stage3_obstacle.png" },
       {
@@ -69,9 +69,18 @@ export class StageManager {
     this.stageSwitched = false;
     this.fadeOpacity = 0;
 
-    // 기본 환경 복구
-    //this.updateStageAssets(0, player);
-  }
+    // ✅ 플레이어 스프라이트를 stage1 기준으로 복원
+    if (player) {
+      player.setSprite(this.playerSprites[0]);  // stage1 캐릭터 이미지
+      player.w = this.width * 0.15;
+      player.h = this.height * 0.36;
+      player.y = this.height - 50 - player.h;
+    }
+
+    // ✅ 배경 및 장애물 세트만 초기화
+    this.currentBg = this.bgImages[0];
+    this.currentObstacleSet = this.obstacleSets[0];
+    }
 
   // 🎨 스테이지별 리소스(배경, 장애물, 플레이어) 통합 관리 + 해상도 보정
   updateStageAssets(stage, player) {
