@@ -70,7 +70,7 @@ export class StageManager {
     this.fadeOpacity = 0;
 
     // 기본 환경 복구
-    this.updateStageAssets(0, player);
+    //this.updateStageAssets(0, player);
   }
 
   // 🎨 스테이지별 리소스(배경, 장애물, 플레이어) 통합 관리 + 해상도 보정
@@ -91,10 +91,14 @@ export class StageManager {
       switch (stage) {
         case 0:
         case 1:
-          player.w = baseW * 0.1;  // 약간 키움 (기존 0.15 → 0.18)
+          player.w = baseW * 0.25;  // 약간 키움 (기존 0.15 → 0.18)
           player.h = baseH * 0.40;
         case 2:
+          player.w = baseW * 0.25;  // 약간 키움 (기존 0.15 → 0.18)
+          player.h = baseH * 0.40;
         case 3:
+          player.w = baseW * 0.25;  // 약간 키움 (기존 0.15 → 0.18)
+          player.h = baseH * 0.40;
           break;
       }
 
