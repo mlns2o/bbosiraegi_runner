@@ -98,7 +98,7 @@ function resetGame() {
   hitCount = 0;
   lastTime = 0;
   player.reset(width, height);
-  stageManager.reset();
+  stageManager.reset(player);
 }
 
 // ====================== 입력 처리 ======================
@@ -128,6 +128,52 @@ canvas.addEventListener("touchend", (e) => {
   e.preventDefault();
   handleInput();
 });
+
+// ====================== 모바일 스와이프 감지 ======================
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+
+canvas.addEventListener("touchstart", (e) => {
+  if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }
+});
+
+canvas.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  if (e.changedTouches.length === 1) {
+    touchEndX = e.changedTouches[0].clientX;
+    touchEndY = e.changedTouches[0].clientY;
+    handleTouchGesture();
+  }
+});
+
+function handleTouchGesture() {
+  const dx = touchEndX - touchStartX;
+  const dy = touchEndY - touchStartY;
+
+  // 👉 오른쪽으로 스와이프 (슬라이드)
+  if (Math.abs(dx) > Math.abs(dy) && dx > 50 && gameState === "playing") {
+    player.slide(true, groundY);
+    setTimeout(() => player.slide(false, groundY), 500);
+    return;
+  }
+
+  // 👆 위쪽 터치 (점프)
+  if (Math.abs(dy) > Math.abs(dx) && dy < -50 && gameState === "playing") {
+    player.jump();
+    return;
+  }
+
+  // 🔹 단순 탭 (점프)
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+    handleInput();
+  }
+}
+
 
 // 🎮 상태별 입력 처리
 function handleInput() {

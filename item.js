@@ -1,12 +1,12 @@
 export class Item {
   constructor(width, height, groundY) {
-    this.w = 40;
-    this.h = 40;
+    this.w = 60;
+    this.h = 60;
     this.x = width;
     this.speed = 5;
     this.alpha = 1;
 
-    // 플레이어 이중 점프 최고 높이 (예: groundY - 200 정도)
+    // 플레이어 이중 점프 최고 높이 
     const jumpRange = 200; // 점프 최대 높이 범위 (필요하면 조절 가능)
 
     // ✅ groundY 기준으로 랜덤 높이 설정
