@@ -148,54 +148,53 @@ canvas.addEventListener("touchend", (e) => {
 });
 
 // ====================== 모바일 스와이프 감지 ======================
+// ====================== 모바일 터치 입력 ======================
+
 let touchStartX = 0;
 let touchStartY = 0;
 let touchEndX = 0;
 let touchEndY = 0;
-let touchInProgress = false;
 
 canvas.addEventListener("touchstart", (e) => {
   if (e.touches.length === 1) {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    touchInProgress = true;
   }
 });
 
 canvas.addEventListener("touchend", (e) => {
   e.preventDefault();
-  if (!touchInProgress) return;
-  touchInProgress = false;
 
   if (e.changedTouches.length === 1) {
     touchEndX = e.changedTouches[0].clientX;
     touchEndY = e.changedTouches[0].clientY;
-    handleTouchGesture();
+
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+
+    // 👉 오른쪽 스와이프 → 슬라이드
+    if (Math.abs(dx) > Math.abs(dy) && dx > 50 && gameState === "playing") {
+      player.slide(true, groundY);
+      setTimeout(() => player.slide(false, groundY), 500);
+      return;
+    }
+
+    // 👆 위로 스와이프 → 점프
+    if (Math.abs(dy) > Math.abs(dx) && dy < -50 && gameState === "playing") {
+      player.jump();
+      return;
+    }
+
+    // 👆👆 단순 탭 (짧은 터치) → 점프 (이단 점프 가능)
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+      if (["start", "story", "howto", "gameover", "clear"].includes(gameState)) {
+        handleInput(); // 화면 넘기기용
+      } else if (gameState === "playing") {
+        player.jump(); // ✅ 이중 점프 가능
+      }
+    }
   }
 });
-
-function handleTouchGesture() {
-  const dx = touchEndX - touchStartX;
-  const dy = touchEndY - touchStartY;
-
-  // 👉 오른쪽 스와이프 → 슬라이드
-  if (Math.abs(dx) > Math.abs(dy) && dx > 50 && gameState === "playing") {
-    player.slide(true, groundY);
-    setTimeout(() => player.slide(false, groundY), 500);
-    return;
-  }
-
-  // 👆 위로 스와이프 → 점프
-  if (Math.abs(dy) > Math.abs(dx) && dy < -50 && gameState === "playing") {
-    player.jump();
-    return;
-  }
-
-  // 👆👆 단순 탭 (짧은 터치) → 점프 (이중점프 허용)
-  if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && gameState === "playing") {
-    player.jump(); // ✅ 이 부분이 double jump를 트리거함
-  }
-}
 
 
 
