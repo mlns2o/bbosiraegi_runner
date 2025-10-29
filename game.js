@@ -142,11 +142,6 @@ document.addEventListener("keyup", (e) => {
   if (["Space", "Tab", "Enter"].includes(e.code)) spaceHeld = false;
 });
 
-canvas.addEventListener("touchend", (e) => {
-  e.preventDefault();
-  handleInput();
-});
-
 // ====================== 모바일 터치 입력 ======================
 let lastTapTime = 0; // 더블탭 간격 측정용
 let touchStartX = 0;
@@ -188,10 +183,12 @@ canvas.addEventListener("touchend", (e) => {
       lastTapTime = now;
 
       // 350ms 이내 두 번 탭이면 — 두 번째 점프도 허용
-      if (timeDiff < 350) {
-        player.jump(); // 공중에서 이단 점프
-      } else {
-        player.jump(); // 첫 점프
+      if (player.jumpCount === 0) {
+      player.jump();
+      }
+    // ✅ 두 번째 탭: 350ms 안에, 공중에 있을 때만 이단 점프
+      else if (player.jumpCount === 1 && timeDiff < 350) {
+        player.jump();
       }
     }
   }
