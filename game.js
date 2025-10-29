@@ -35,10 +35,27 @@ function drawStartScreen() {
   }
 }
 
+// ✅ 스토리 화면 
+let storyImageLoaded = false;
+let storyImage = new Image();
+storyImage.src = "assets/img/start_notice_01.png"; // 새로 만든 이미지 경로
+storyImage.onload = () => {
+  storyImageLoaded = true;
+  if (gameState === "story") drawStoryScreen();
+};
+
+function drawStoryScreen() {
+  ctx.clearRect(0, 0, width, height);
+  if (storyImageLoaded) {
+    ctx.drawImage(storyImage, 0, 0, width, height);
+  }
+}
+
+
 // ✅ 설명화면
 let howToLoaded = false;
 let howToImg = new Image();
-howToImg.src = "assets/img/start_notice.png";
+howToImg.src = "assets/img/start_notice_02.png";
 howToImg.onload = () => {
   howToLoaded = true;
   if (gameState === "howto") drawHowToScreen();
@@ -59,6 +76,7 @@ function setupCanvas() {
   groundY = height - 50;
 
   if (gameState === "start") drawStartScreen();
+  else if (gameState === "story") drawHowToScreen();
   else if (gameState === "howto") drawHowToScreen();
 }
 setupCanvas();
@@ -185,7 +203,11 @@ function handleTouchGesture() {
 function handleInput() {
   switch (gameState) {
     case "start":
-      gameState = "howto";
+      gameState = "story";
+      drawStoryScreen();
+      break;
+    case "story":
+      gameState = "howto";        // ✅ 다음은 게임 방법 화면
       drawHowToScreen();
       break;
     case "howto":
