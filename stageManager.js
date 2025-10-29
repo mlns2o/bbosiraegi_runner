@@ -286,7 +286,7 @@ export class StageManager {
         return { speed: 7.6, obstacleChance: 0.035, minSpawnGap: 1000, itemChance: 0.008 };
       case 3:
         return {
-            speed: 8.3,           // 🔹 기존 9 → 조금 느리게
+            speed: 8,           // 🔹 기존 9 → 조금 느리게
             obstacleChance: 0.02, // 🔹 장애물 등장 확률 낮춤 (기존 0.04 → 0.02)
             minSpawnGap: 1000,    // 🔹 스폰 간격 늘림
             itemChance: 0.009,    // 🔹 아이템 등장률 살짝 ↑
