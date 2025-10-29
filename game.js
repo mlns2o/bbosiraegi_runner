@@ -182,7 +182,6 @@ canvas.addEventListener("touchend", (e) => {
       const timeDiff = now - lastTapTime;
       lastTapTime = now;
 
-      // 350ms 이내 두 번 탭이면 — 두 번째 점프도 허용
       if (player.jumpCount === 0) {
       player.jump();
       }

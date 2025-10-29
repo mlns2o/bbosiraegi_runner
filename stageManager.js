@@ -244,7 +244,7 @@ export class StageManager {
         const ground2H = 150; // 사람 높이
 
         // 🚗 자동차 (약 70% 확률로 등장)
-        if (Math.random() < 0.7) {
+        if (Math.random() < 0.5) {
           const car = new Obstacle(
             this.width,
             this.groundY - ground1H,
@@ -257,7 +257,7 @@ export class StageManager {
         }
 
         // 🧍 사람 (약 50% 확률로 등장)
-        if (Math.random() < 0.5) {
+        if (Math.random() < 0.7) {
           const offset = 100 + Math.random() * 200; // 랜덤 간격
           const person = new Obstacle(
             this.width + offset,
@@ -281,14 +281,14 @@ export class StageManager {
       case 0:
         return { speed: 6, obstacleChance: 0.02, minSpawnGap: 1200, itemChance: 0.01 };
       case 1:
-        return { speed: 7, obstacleChance: 0.03, minSpawnGap: 1000, itemChance: 0.008 };
+        return { speed: 7, obstacleChance: 0.03, minSpawnGap: 1000, itemChance: 0.009 };
       case 2:
-        return { speed: 8, obstacleChance: 0.035, minSpawnGap: 900, itemChance: 0.006 };
+        return { speed: 7.6, obstacleChance: 0.035, minSpawnGap: 1000, itemChance: 0.008 };
       case 3:
         return {
             speed: 8.3,           // 🔹 기존 9 → 조금 느리게
             obstacleChance: 0.02, // 🔹 장애물 등장 확률 낮춤 (기존 0.04 → 0.02)
-            minSpawnGap: 1100,    // 🔹 스폰 간격 늘림
+            minSpawnGap: 1000,    // 🔹 스폰 간격 늘림
             itemChance: 0.009,    // 🔹 아이템 등장률 살짝 ↑
         };
       default:
